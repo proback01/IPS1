@@ -88,8 +88,10 @@ size_t allign_page(size_t size)
     // FIXME
     //(void)size;
     //return size;
-    if(size % PAGE_SIZE == 0) return size;
-    return ((size / PAGE_SIZE)+1) * PAGE_SIZE;
+    size_t modulo = size % PAGE_SIZE;
+    //if(!modulo) return size;
+    return size + PAGE_SIZE - modulo; 
+    //return (((size / PAGE_SIZE)+1) * PAGE_SIZE);
 }
 
 /**
@@ -112,7 +114,7 @@ Arena *arena_alloc(size_t req_size)
     // FIXME
     //(void)req_size;
     //return NULL;
-    req_size = allign_page(req_size);
+    req_size = allign_page(req_size + sizeof(Header));
     if(req_size < sizeof(Arena) + sizeof(Header)) return NULL;
 
     Arena *ap = (Arena*)mmap(0, req_size + sizeof(Arena), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,0);
@@ -275,13 +277,13 @@ Header *best_fit(size_t size)
 {
     // FIXME
     //(void)size;
-    Header *best = (Header*)&first_arena[1];
+    Header *best = NULL;//(Header*)&first_arena[1];
     Arena *it_a = first_arena;
     Header *it_h = best->next;
-    Header *first = (Header*)&first_arena[1];
+    Header *first = best;
 
     while(it_a != NULL){
-        while(it_h != first){
+        while(it_h != first){ //perhaps error here?
             if(it_h->asize){
                 it_h = it_h->next;
                 continue; //not free
@@ -291,9 +293,14 @@ Header *best_fit(size_t size)
             it_h = it_h->next; //inc iterator
         }
         it_a = it_a->next; //inc iterator
+        if(it_a){
+            first = (Header*)&it_a[1];
+            it_h = first->next;
+        }//wtf
     }
 
     if(best->asize) return NULL; //not free
+    if(best->size < size) return NULL; //not enough free space
     return best;
 }
 
