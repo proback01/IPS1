@@ -263,6 +263,7 @@ void hdr_merge(Header *left, Header *right)
     if(hdr_can_merge(left, right)){
         left->size += sizeof(Header) + right->size;
         left->next = right->next;
+        right->next = NULL;
     }
 }
 
@@ -277,13 +278,13 @@ Header *best_fit(size_t size)
 {
     // FIXME
     //(void)size;
-    Header *best = NULL;//(Header*)&first_arena[1];
+    Header *best = (Header*)&first_arena[1];
     Arena *it_a = first_arena;
     Header *it_h = best->next;
     Header *first = best;
 
     while(it_a != NULL){
-        while(it_h != first){ //perhaps error here?
+        do{//while(it_h != first){ //perhaps error here?
             if(it_h->asize){
                 it_h = it_h->next;
                 continue; //not free
@@ -291,7 +292,7 @@ Header *best_fit(size_t size)
             if(size == it_h->size) return it_h; //correct match
             if(best->asize || (it_h->size < best->size && it_h->size > size)) best = it_h;
             it_h = it_h->next; //inc iterator
-        }
+        }while(it_h != first);
         it_a = it_a->next; //inc iterator
         if(it_a){
             first = (Header*)&it_a[1];
@@ -367,6 +368,8 @@ void mfree(void *ptr)
     Header *hdr = (Header*)(ptr - sizeof(Header));
     hdr->asize = 0;
     if(hdr_can_merge(hdr, hdr->next)) hdr_merge(hdr, hdr->next);
+    Header *prev = hdr_get_prev(hdr);
+    if(hdr_can_merge(prev, hdr)) hdr_merge(prev, hdr);
 }
 
 /**
