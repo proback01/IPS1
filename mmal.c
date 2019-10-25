@@ -219,7 +219,7 @@ Header *hdr_split(Header *hdr, size_t req_size)
     //the space is not enought for 2, not splitting
     //using the given header
     if(!hdr_should_split(hdr, req_size)) return hdr;
-    Header *right = &hdr[0] + sizeof(Header) + req_size;//(Header*)(((char*)&hdr) + req_size + sizeof(Header));
+    Header *right = (Header*)((char*)&hdr[1] + sizeof(Header) + req_size);//(Header*)(((char*)&hdr) + req_size + sizeof(Header));
     hdr_ctor(right, hdr->size - sizeof(Header) - req_size);
     right->next = hdr->next;
     hdr->next = right;
@@ -278,19 +278,23 @@ Header *best_fit(size_t size)
 {
     // FIXME
     //(void)size;
-    Header *best = (Header*)&first_arena[1];
+    Header *best = NULL;//(Header*)&first_arena[1];
+    Header *first = (Header*)&first_arena[1];
     Arena *it_a = first_arena;
-    Header *it_h = best->next;
-    Header *first = best;
+    Header *it_h = first->next;
 
     while(it_a != NULL){
         do{//while(it_h != first){ //perhaps error here?
-            if(it_h->asize){
-                it_h = it_h->next;
-                continue; //not free
+            if(!it_h->asize){
+                if(best == NULL){
+                    if(it_h->size > size) best = it_h;
+                }else{
+                    if(it_h->size == size) return it_h;
+                    if(it_h->size > size && it_h->size < best->size) best = it_h;
+                }
             }
-            if(size == it_h->size) return it_h; //correct match
-            if(best->asize || (it_h->size < best->size && it_h->size > size)) best = it_h;
+            //if(size == it_h->size) return it_h; //correct match
+            //if(best->asize || (it_h->size < best->size && it_h->size > size)) best = it_h;
             it_h = it_h->next; //inc iterator
         }while(it_h != first);
         it_a = it_a->next; //inc iterator
@@ -300,8 +304,8 @@ Header *best_fit(size_t size)
         }//wtf
     }
 
-    if(best->asize) return NULL; //not free
-    if(best->size < size) return NULL; //not enough free space
+    //if(best->asize) return NULL; //not free
+    //if(best->size < size) return NULL; //not enough free space
     return best;
 }
 
